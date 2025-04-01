@@ -1,35 +1,96 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftRight, Maximize, Moon, Share, Sun } from "lucide-react";
+import { ArrowLeftRight, Maximize, Moon, Share, Sun, Play } from "lucide-react";
 import LanguageSidebar from "./LanguageSidebar";
 import CodeInputPanel from "./CodeInputPanel";
 import OutputPanel from "./OutputPanel";
+import { toast } from "sonner";
 
 const CodeEditor = () => {
   const [code, setCode] = useState<string>("");
   const [output, setOutput] = useState<string>("");
+  const [isRunning, setIsRunning] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState("c");
   const [currentFileName, setCurrentFileName] = useState("main.c");
   const [swapped, setSwapped] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   
-  // Initial sample code for C language
-  const defaultCode = `#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}`;
+  // Default code templates for different languages
+  const defaultCodes: Record<string, string> = {
+    c: `#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}`,
+    cpp: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}`,
+    python: `# Python example\nprint("Hello, World!")`,
+    javascript: `// JavaScript example\nconsole.log("Hello, World!");`,
+    php: `<?php\n    echo "Hello, World!";\n?>`,
+    go: `package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}`,
+    java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`,
+    html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>Hello</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>`
+  };
   
   // Set default code on mount
-  useState(() => {
-    setCode(defaultCode);
-  });
+  useEffect(() => {
+    setCode(defaultCodes[currentLanguage]);
+  }, [currentLanguage]);
 
   const handleRun = () => {
-    // In a real app, this would send code to a backend
-    // For now, simulate execution
-    setOutput(`Running ${currentFileName}...\n> Compiling...\n> Executing...\n> Output: Hello, World!`);
+    setIsRunning(true);
+    setOutput(`$ Running ${currentFileName}...\n`);
+    
+    // Simulate terminal execution with a realistic delay
+    setTimeout(() => {
+      const terminalCommands: Record<string, string[]> = {
+        c: [`$ gcc ${currentFileName} -o main`, "$ ./main"],
+        cpp: [`$ g++ ${currentFileName} -o main`, "$ ./main"],
+        python: [`$ python3 ${currentFileName}`],
+        javascript: [`$ node ${currentFileName}`],
+        php: [`$ php ${currentFileName}`],
+        go: [`$ go run ${currentFileName}`],
+        java: [`$ javac ${currentFileName}`, "$ java Main"],
+        html: [`$ open ${currentFileName}`]
+      };
+      
+      // Show compilation/interpretation commands with delays
+      const commands = terminalCommands[currentLanguage] || [];
+      
+      let currentStep = 0;
+      const processSteps = () => {
+        if (currentStep < commands.length) {
+          setOutput(prev => prev + "\n" + commands[currentStep]);
+          
+          // Simulate command execution time
+          setTimeout(() => {
+            currentStep++;
+            processSteps();
+          }, 500);
+        } else {
+          // Final output
+          setTimeout(() => {
+            const outputs: Record<string, string> = {
+              c: "Hello, World!",
+              cpp: "Hello, World!",
+              python: "Hello, World!",
+              javascript: "Hello, World!",
+              php: "Hello, World!",
+              go: "Hello, World!",
+              java: "Hello, World!",
+              html: "[Browser opened with Hello, World!]"
+            };
+            
+            setOutput(prev => prev + "\n\n" + (outputs[currentLanguage] || "Hello, World!"));
+            setIsRunning(false);
+            toast.success("Code execution completed!");
+          }, 300);
+        }
+      };
+      
+      processSteps();
+    }, 500);
   };
 
   const handleClear = () => {
     setOutput("");
+    toast.info("Terminal cleared");
   };
 
   const handleSwap = () => {
@@ -38,11 +99,14 @@ const CodeEditor = () => {
 
   const handleThemeToggle = () => {
     setTheme(theme === "light" ? "dark" : "light");
+    toast.success(`Theme changed to ${theme === "light" ? "dark" : "light"} mode`);
   };
 
   const handleShare = () => {
     // Simulate share functionality
-    alert("Share link copied to clipboard!");
+    navigator.clipboard.writeText(code).then(() => {
+      toast.success("Code copied to clipboard!");
+    });
   };
 
   const handleLanguageChange = (language: string) => {
@@ -58,17 +122,6 @@ const CodeEditor = () => {
     setCurrentFileName(`main.${extension}`);
     
     // Set default code for the language
-    const defaultCodes: Record<string, string> = {
-      c: `#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}`,
-      cpp: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}`,
-      python: `# Python example\nprint("Hello, World!")`,
-      javascript: `// JavaScript example\nconsole.log("Hello, World!");`,
-      php: `<?php\n    echo "Hello, World!";\n?>`,
-      go: `package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}`,
-      java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`,
-      html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>Hello</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>`
-    };
-    
     setCode(defaultCodes[language] || "// Enter your code here");
   };
 
@@ -120,9 +173,10 @@ const CodeEditor = () => {
             
             <Button 
               onClick={handleRun}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isRunning}
+              className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-1"
             >
-              Run
+              <Play size={16} /> {isRunning ? "Running..." : "Run"}
             </Button>
           </div>
         </div>
